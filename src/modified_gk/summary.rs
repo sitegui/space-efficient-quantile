@@ -1,14 +1,14 @@
 use super::incoming_merge_state::IncomingMergeState;
-use super::sample::Sample;
 use super::samples_compressor::SamplesCompressor;
-use crate::btree::{BTree, InsertionPoint};
+use super::samples_tree::{Sample, SamplesTree};
 use crate::quantile_to_rank;
+use std::mem;
 
 /// Implement a modified version of the algorithm by Greenwald and Khanna in
 /// Space-Efficient Online Computation of Quantile Summaries
 /// TODO: describe the diferences and explain why
-pub struct Summary<T: Ord + Clone> {
-    samples: BTree<Sample<T>>,
+pub struct Summary<T: Ord> {
+    samples_tree: SamplesTree<T>,
     /// Maximum number of samples to keep
     max_samples: u64,
     /// Maximum error
@@ -17,12 +17,12 @@ pub struct Summary<T: Ord + Clone> {
     len: u64,
 }
 
-impl<T: Ord + Clone> Summary<T> {
+impl<T: Ord> Summary<T> {
     /// Create a new empty Summary
     pub fn new(max_expected_error: f64) -> Summary<T> {
         let expected_least_compressed_samples = (1. / max_expected_error).ceil() as u64;
         Summary {
-            samples: BTree::new(),
+            samples_tree: SamplesTree::new(),
             // This encodes a tradeoff between using more memory and compressing more frequently.
             // However, with the implemented micro-compression at every insert, in the worst case
             // (sorted stream of values), the structure will accumulate all of the `F=1/eps` first
@@ -44,64 +44,14 @@ impl<T: Ord + Clone> Summary<T> {
 
     /// Insert a single new value into the Summary
     pub fn insert_one(&mut self, value: T) {
-        // General case
-        let search_sample = Sample::exact(value.clone());
-
         self.len += 1;
         let cap = self.max_g_delta();
 
-        self.samples.try_insert(&search_sample, |insertion_point| {
-            match insertion_point {
-                // First value
-                InsertionPoint::Empty => Some(Sample::exact(value)),
-                // New minimum
-                InsertionPoint::Minimum(min, mut after_min) => {
-                    debug_assert_eq!(min.g, 1);
-                    debug_assert_eq!(min.delta, 0);
-                    match &mut after_min {
-                        Some(after_min) if after_min.delta + after_min.g + 1 <= cap => {
-                            // Merge previous `min` into `after_min` and replace it
-                            after_min.g += 1;
-                            min.value = value;
-                            None
-                        }
-                        _ => {
-                            // Insert
-                            Some(Sample::exact(value))
-                        }
-                    }
-                }
-                // New maximum
-                InsertionPoint::Maximum(max) => {
-                    debug_assert_eq!(max.delta, 0);
-                    if max.g + 1 <= cap {
-                        // Merge previous `max` into this new one
-                        max.g += 1;
-                        max.value = value;
-                        None
-                    } else {
-                        // Insert
-                        Some(Sample::exact(value))
-                    }
-                }
-                // Somewhere in the middle
-                InsertionPoint::Intermediate(right) => {
-                    if right.delta + right.g + 1 <= cap {
-                        // Drop
-                        right.g += 1;
-                        None
-                    } else {
-                        // Insert
-                        let delta = right.g + right.delta - 1;
-                        Some(Sample { value, g: 1, delta })
-                    }
-                }
-            }
-        });
+        self.samples_tree.push_value(value, cap);
 
         // Keep the number of saved samples bounded
-        if self.samples.len() > self.max_samples as usize {
-            self.compress()
+        if self.samples_tree.len() > self.max_samples as usize {
+            self.compress();
         }
     }
 
@@ -111,7 +61,7 @@ impl<T: Ord + Clone> Summary<T> {
             other.max_expected_error <= self.max_expected_error,
             "The incoming Summary must have an equal or smaller max_expected_error"
         );
-        self.merge_sorted_samples(other.samples.iter().cloned(), other.len);
+        self.merge_sorted_samples(other.samples_tree.into_iter(), other.len);
     }
 
     /// Query for a desired quantile
@@ -128,7 +78,7 @@ impl<T: Ord + Clone> Summary<T> {
         let target_rank = quantile_to_rank(quantile, self.len);
         let mut min_rank = 0;
 
-        self.samples
+        self.samples_tree
             .iter()
             // For each sample, calculate the maximum rank error if we choose it as the answer
             .map(|sample| {
@@ -174,11 +124,12 @@ impl<T: Ord + Clone> Summary<T> {
         let mut compressor = SamplesCompressor::new(self.max_g_delta());
 
         // Consume the samples (since T may not implement Copy, we temporally place a zero tree)
-        for sample in self.samples.iter().cloned() {
+        let old_samples_tree = mem::replace(&mut self.samples_tree, SamplesTree::new());
+        for sample in old_samples_tree.into_iter() {
             compressor.push(sample);
         }
 
-        self.samples = compressor.into_samples();
+        self.samples_tree = compressor.into_samples_tree();
     }
 
     /// Merge a source of sorted samples into this Summary
@@ -195,9 +146,8 @@ impl<T: Ord + Clone> Summary<T> {
         let mut compressor = SamplesCompressor::new(max_g_delta);
 
         // Get current samples as iterator
-        // Note the use of replace() since T may not implement Copy
-        // Besides, a zero-capacity vector does not call alloc(), that's cool
-        let self_samples = self.samples.iter().cloned();
+        let old_samples_tree = mem::replace(&mut self.samples_tree, SamplesTree::new());
+        let self_samples = old_samples_tree.into_iter();
 
         // Prepare state for merge
         let mut other_input = IncomingMergeState::new(other_samples);
@@ -209,12 +159,12 @@ impl<T: Ord + Clone> Summary<T> {
                 // Nothing to merge from one of the sides: move remaining values
                 (None, _) => {
                     other_input.push_remaining_to(&mut compressor);
-                    self.samples = compressor.into_samples();
+                    self.samples_tree = compressor.into_samples_tree();
                     break;
                 }
                 (_, None) => {
                     self_input.push_remaining_to(&mut compressor);
-                    self.samples = compressor.into_samples();
+                    self.samples_tree = compressor.into_samples_tree();
                     break;
                 }
                 (Some(self_peeked), Some(other_peeked)) => {
@@ -239,7 +189,7 @@ impl<T: Ord + Clone> Summary<T> {
     where
         T: Copy,
     {
-        self.samples
+        self.samples_tree
             .iter()
             .map(|&sample| (sample.value, sample.g, sample.delta))
             .collect::<Vec<_>>()
@@ -360,14 +310,14 @@ mod test {
             let mut prev_samples_len = 0;
             for i in iter {
                 summary.insert_one(i);
-                let samples_len = summary.samples.len();
+                let samples_len = summary.samples_tree.len();
                 if samples_len < prev_samples_len {
                     num_compressions += 1;
                 }
                 prev_samples_len = samples_len;
             }
 
-            (num_compressions, summary.len, summary.samples.len())
+            (num_compressions, summary.len, summary.samples_tree.len())
         };
 
         // Ascending and descending are both worst case and identical

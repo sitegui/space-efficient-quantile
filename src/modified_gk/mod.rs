@@ -1,6 +1,6 @@
 mod incoming_merge_state;
-mod sample;
 mod samples_compressor;
+mod samples_tree;
 
 mod summary;
 pub use summary::Summary;

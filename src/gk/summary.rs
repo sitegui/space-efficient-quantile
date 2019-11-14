@@ -37,7 +37,7 @@ impl<T: Ord> Summary<T> {
 
     /// Query the structure for a given epsilon-approximate quantile
     /// Return None if and only if no value was inserted
-    pub fn query(&self, quantile: f64) -> Option<&T> {
+    pub fn query_with_error(&self, quantile: f64) -> Option<(&T, f64)> {
         // Note: unlike the original article, this operation will return the
         // closest tuple instead of the least one when there are multiple possible
         // answers
@@ -45,25 +45,34 @@ impl<T: Ord> Summary<T> {
             return None;
         }
 
-        let rank = quantile_to_rank(quantile, self.len);
+        let target_rank = quantile_to_rank(quantile, self.len);
         let mut min_rank = 0;
         let max_err = (self.epsilon * self.len as f64).floor() as u64;
-        let mut best_sample: (&Sample<T>, f64) =
-            (self.samples.first().unwrap(), std::f64::INFINITY);
+        let mut best_sample: (&Sample<T>, u64) = (self.samples.first().unwrap(), std::u64::MAX);
         for sample in &self.samples {
             min_rank += sample.g;
             let max_rank = min_rank + sample.delta;
-            let mid = min_rank as f64 + (sample.delta as f64 / 2.).ceil();
-            let error = rank as f64 - mid;
-            if rank <= max_err + min_rank
-                && max_rank <= max_err + rank
-                && error.abs() < best_sample.1.abs()
+            let mid_rank = (min_rank + max_rank) / 2;
+            let max_rank_error = if target_rank > mid_rank {
+                target_rank - min_rank
+            } else {
+                max_rank - target_rank
+            };
+            if target_rank <= max_err + min_rank
+                && max_rank <= max_err + target_rank
+                && max_rank_error < best_sample.1
             {
-                best_sample = (sample, error);
+                best_sample = (sample, max_rank_error);
             }
         }
 
-        Some(&best_sample.0.value)
+        Some((&best_sample.0.value, best_sample.1 as f64 / self.len as f64))
+    }
+
+    /// Query the structure for a given epsilon-approximate quantile
+    /// Return None if and only if no value was inserted
+    pub fn query(&self, quantile: f64) -> Option<&T> {
+        self.query_with_error(quantile).map(|x| x.0)
     }
 
     /// Merge another summary into this oen

@@ -11,7 +11,7 @@ This is mostly an exercise of Rust :)
 The results of benchmark implemented by the file [./run_benchmark.sh](run_benchmark.sh) and run in AMD® Ryzen 7 2700x were as follows:
 
 Algorithm | Max error | Num threads | Num elements | Time | Memory
----|---|---|---|---|---|---
+---|---|---|---|---|---
 Naive | 0% | 1 | 100M | 18s | 1100MB
 GK | 1% | 1 | 100M | 23s | 3.0MB
 GK | 1% | 8 | 100M | 3.1s | 3.1MB

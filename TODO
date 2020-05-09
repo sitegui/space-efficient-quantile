@@ -10,3 +10,5 @@ impl<T: Ord> IntoIterator for SamplesNode<T> {
 		NodeIter::new(samples_iter, None)
 	}
 }
+
+- move src/bin/benchmark.rs to benches/

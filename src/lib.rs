@@ -1,5 +1,7 @@
-pub mod gk;
-pub mod modified_gk;
+mod algorithm;
+pub use algorithm::*;
+
+#[cfg(test)]
 pub mod quantile_generator;
 
 /// Convert from quantile to the rank

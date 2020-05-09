@@ -1,4 +1,4 @@
-use space_efficient_quantile::quantile_generator::{OrderedF64, RandomGenerator};
+use crate::quantile_generator::{OrderedF64, RandomGenerator};
 use std::env;
 use std::thread;
 

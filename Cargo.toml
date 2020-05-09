@@ -1,23 +1,47 @@
 [package]
-name = "space_efficient_quantile"
+name = "fast-quantiles"
 version = "0.1.0"
 authors = ["Guilherme <sitegui@sitegui.com.br>"]
 edition = "2018"
-
-# TODO: add more fields from https://doc.rust-lang.org/cargo/reference/manifest.html#package-metadata
+description = "A space-efficient and very fast algorithm to calculate approximate quantiles (min, max, median, etc) from a parallel streaming source of values"
+readme = "README.md"
+repository = "https://github.com/sitegui/fast-quantiles"
+license = "MIT"
+keywords = ["statistics", "percentiles", "quantiles", "median", "histogram"]
+categories = ["algorithms", "concurrency", "data-structures", "mathematics", "science"]
 
 [dependencies]
-rand = "0.7.0"
-rand_pcg = "0.2.0"
 typenum = "1.11.2"
 sized-chunks = "0.5.0"
 
 [dev-dependencies]
 criterion = "0.3"
+rand = "0.7.0"
+rand_pcg = "0.2.0"
 
 [[bench]]
 name = "benchmark"
 harness = false
 
-[profile.release]
-debug = true
+[badges]
+
+# Travis CI: `repository` in format "<user>/<project>" is required.
+# `branch` is optional; default is `master`
+#travis-ci = { repository = "...", branch = "master" }
+
+# Codecov: `repository` is required. `branch` is optional; default is `master`
+# `service` is optional; valid values are `github` (default), `bitbucket`, and
+# `gitlab`.
+#codecov = { repository = "...", branch = "master", service = "github" }
+
+# Coveralls: `repository` is required. `branch` is optional; default is `master`
+# `service` is optional; valid values are `github` (default) and `bitbucket`.
+#coveralls = { repository = "...", branch = "master", service = "github" }
+
+# Is it maintained resolution time: `repository` is required.
+#is-it-maintained-issue-resolution = { repository = "..." }
+
+# Is it maintained percentage of open issues: `repository` is required.
+#is-it-maintained-open-issues = { repository = "..." }
+
+maintenance = { status = "passively-maintained" }

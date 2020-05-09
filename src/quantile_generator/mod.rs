@@ -1,20 +1,36 @@
-mod ordered_f64;
-
-pub trait QuantileGenerator: Iterator<Item = OrderedF64> {}
+//! Iterators with a given length and a known quantile point
+//!
+//! This module provides iterators of `N` floats with the value `x` for the quantile `q`, where
+//! `N`, `x` and `q` can be directly controlled. The floats are represented by `NotNan<f64>`,
+//! because this type implements `Ord`.
+//!
+//! The rule respected is: `rank_x = ceil(q * (N - 1))`, where `rank_x` is defined as the number of
+//! values strictly smaller than `x`. At the extremes, with `q = 0`, `x` is the least returned value
+//! and with `q = 1` it is the largest.
+//!
+//! This module is mainly used to provide test data in order to test the quantile implementations.
 
 mod random;
 mod sequential;
 
-pub use ordered_f64::OrderedF64;
+use ordered_float::NotNan;
+use std::iter::FusedIterator;
+
+/// The main trait representing an iterator of floats
+pub trait QuantileGenerator:
+    Iterator<Item = NotNan<f64>> + ExactSizeIterator + FusedIterator
+{
+}
+
 pub use random::RandomGenerator;
 pub use sequential::{SequentialGenerator, SequentialOrder};
-
 
 #[cfg(test)]
 mod test {
     use super::*;
 
     use crate::quantile_to_rank;
+
     #[test]
     fn median() {
         check_all(0.5, 17., 1);

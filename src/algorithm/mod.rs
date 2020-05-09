@@ -8,8 +8,9 @@ pub use summary::Summary;
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::quantile_generator::{OrderedF64, QuantileGenerator, RandomGenerator};
+    use crate::quantile_generator::{QuantileGenerator, RandomGenerator};
     use crate::rank_to_quantile;
+    use ordered_float::NotNan;
 
     #[test]
     fn check_max_error() {
@@ -115,7 +116,7 @@ mod test {
         check_all_ranks(s1, values, epsilon);
     }
 
-    fn consume_generator<G>(gen: G, summaries: &mut [&mut Summary<G::Item>]) -> Vec<OrderedF64>
+    fn consume_generator<G>(gen: G, summaries: &mut [&mut Summary<G::Item>]) -> Vec<NotNan<f64>>
     where
         G: QuantileGenerator,
     {
@@ -131,7 +132,7 @@ mod test {
         values
     }
 
-    fn check_all_ranks(s: Summary<OrderedF64>, values: Vec<OrderedF64>, epsilon: f64) -> f64 {
+    fn check_all_ranks(s: Summary<NotNan<f64>>, values: Vec<NotNan<f64>>, epsilon: f64) -> f64 {
         let mut max_error = (0f64, 0u64, 0u64);
         let num = s.len();
 

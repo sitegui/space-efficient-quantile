@@ -10,14 +10,18 @@ license = "MIT"
 keywords = ["statistics", "percentiles", "quantiles", "median", "histogram"]
 categories = ["algorithms", "concurrency", "data-structures", "mathematics", "science"]
 
+[features]
+quantile-generator = ["rand", "rand_pcg", "ordered-float"]
+
 [dependencies]
 typenum = "1.11.2"
 sized-chunks = "0.5.0"
+rand = { version = "0.7.0", optional = true }
+rand_pcg = { version = "0.2.0", optional = true }
+ordered-float = { version = "1.0.2", optional = true }
 
 [dev-dependencies]
 criterion = "0.3"
-rand = "0.7.0"
-rand_pcg = "0.2.0"
 
 [[bench]]
 name = "benchmark"

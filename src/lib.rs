@@ -1,7 +1,7 @@
 mod algorithm;
 pub use algorithm::*;
 
-#[cfg(test)]
+#[cfg(feature = "quantile-generator")]
 pub mod quantile_generator;
 
 /// Convert from quantile to the rank, where `0 <= quantile <= 1` and `1 <= rank <= num`.

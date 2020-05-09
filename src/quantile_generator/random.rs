@@ -1,14 +1,13 @@
-use super::{OrderedF64, QuantileGenerator};
+use super::QuantileGenerator;
 use crate::quantile_to_rank;
+use ordered_float::NotNan;
 use rand::{Rng, SeedableRng};
 use rand_pcg::Pcg64;
 use std::iter::{ExactSizeIterator, FusedIterator};
 
-/// An iterator that will generate `num` random values and that holds:
-/// rank(x) = ceil(quantile * (num - 1)), where
-/// rank(x) is defined as the number of values strictly smaller than x
-/// At the extremes, with quantile = 0, x is the minimum of the sequence and
-/// with quantile = 1, x is the maximum
+/// An iterator that will generate random values
+///
+/// The values are drawn randomly from the range `(x-1, x+1)` and returned in a random order.
 pub struct RandomGenerator {
     remaining_lesser: usize,
     remaining: usize, // excluding the target value
@@ -18,6 +17,16 @@ pub struct RandomGenerator {
 }
 
 impl RandomGenerator {
+    /// Create a new iterator with the given parameters
+    ///
+    /// # Example
+    /// ```
+    /// use fast_quantiles::quantile_generator::*;
+    /// use ordered_float::NotNan;
+    /// let it = RandomGenerator::new(0.5, 17., 3, 22);
+    /// let values: Vec<_> = it.map(|f| f.into_inner()).collect();
+    /// assert_eq!(values, vec![16.520451506320533, 17.352059635936964, 17.0]);
+    /// ```
     pub fn new(quantile: f64, value: f64, num: usize, seed: u64) -> RandomGenerator {
         assert!(num > 0);
         let remaining_lesser = quantile_to_rank(quantile, num as u64) as usize - 1;
@@ -46,7 +55,7 @@ impl RandomGenerator {
 }
 
 impl Iterator for RandomGenerator {
-    type Item = OrderedF64;
+    type Item = NotNan<f64>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // At each step, we'll select whether to generate a greater, lesser or the target value
@@ -63,7 +72,7 @@ impl Iterator for RandomGenerator {
             let remaining_ratio = 1. / (self.remaining + 1) as f64;
             if self.next_random() < remaining_ratio {
                 self.published_value = true;
-                return Some(OrderedF64::from(self.value));
+                return Some(NotNan::from(self.value));
             }
         }
 
@@ -72,11 +81,11 @@ impl Iterator for RandomGenerator {
         self.remaining -= 1;
         if self.next_random() >= ratio {
             // Greater or equal
-            Some(OrderedF64::from(self.value + self.next_random()))
+            Some(NotNan::from(self.value + self.next_random()))
         } else {
-            // Lesser (multiply by 1-E to make sure it will be lesser even when the random value is zero)
+            // Lesser
             self.remaining_lesser -= 1;
-            Some(OrderedF64::from(self.value - self.next_non_zero_random()))
+            Some(NotNan::from(self.value - self.next_non_zero_random()))
         }
     }
 
@@ -101,7 +110,7 @@ mod test {
     fn respect_seed() {
         fn check(seed: u64, expected_values: Vec<f64>) {
             let values: Vec<_> = RandomGenerator::new(0.5, 17., 7, seed)
-                .map(OrderedF64::into_inner)
+                .map(NotNan::into_inner)
                 .collect();
             assert_eq!(values, expected_values);
         }

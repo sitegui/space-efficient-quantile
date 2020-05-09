@@ -4,15 +4,36 @@ pub use algorithm::*;
 #[cfg(test)]
 pub mod quantile_generator;
 
-/// Convert from quantile to the rank
-/// 0 <= quantile <= 1
-/// 1 <= rank <= num
-/// Example, for num = 4:
-/// quantile   -> rank
-/// [0, 1/4]   -> 1
-/// (1/4, 2/4] -> 2
-/// (2/4, 3/4] -> 3
-/// (3/4, 1]   -> 4
+/// Convert from quantile to the rank, where `0 <= quantile <= 1` and `1 <= rank <= num`.
+///
+/// # Example
+/// For num = 4:
+///
+/// quantile   | rank
+/// -----------|---
+/// [0, 1/4]   | 1
+/// (1/4, 2/4] | 2
+/// (2/4, 3/4] | 3
+/// (3/4, 1]   | 4
+///
+/// ```
+/// use fast_quantiles::quantile_to_rank;
+/// // [0, 1/4] -> 1
+/// assert_eq!(quantile_to_rank(0., 4), 1);
+/// assert_eq!(quantile_to_rank(1./4. - 1e-10, 4), 1);
+/// // (1/4, 2/4] | 2
+/// assert_eq!(quantile_to_rank(1./4. + 1e-10, 4), 2);
+/// assert_eq!(quantile_to_rank(2./4. - 1e-10, 4), 2);
+/// // (2/4, 3/4] | 3
+/// assert_eq!(quantile_to_rank(2./4. + 1e-10, 4), 3);
+/// assert_eq!(quantile_to_rank(3./4. - 1e-10, 4), 3);
+/// // (3/4, 1]   | 4
+/// assert_eq!(quantile_to_rank(3./4. + 1e-10, 4), 4);
+/// assert_eq!(quantile_to_rank(1., 4), 4);
+/// ```
+///
+/// # Panics
+/// This call will panic if `quantile` is out of range
 pub fn quantile_to_rank(quantile: f64, num: u64) -> u64 {
     assert!(
         quantile >= 0. && quantile <= 1.,
@@ -22,7 +43,28 @@ pub fn quantile_to_rank(quantile: f64, num: u64) -> u64 {
     ((quantile * num as f64).ceil() as u64).max(1)
 }
 
-// Reverse quantile_to_rank()
+/// Convert from rank to the quantile, where `0 <= quantile <= 1` and `1 <= rank <= num`.
+///
+/// # Example
+/// For num = 4:
+///
+/// quantile   | rank
+/// -----------|---
+/// [0, 1/4]   | 1
+/// (1/4, 2/4] | 2
+/// (2/4, 3/4] | 3
+/// (3/4, 1]   | 4
+///
+/// ```
+/// use fast_quantiles::rank_to_quantile;
+/// assert_eq!(rank_to_quantile(1, 4), 0.);
+/// assert_eq!(rank_to_quantile(2, 4), 2./4.);
+/// assert_eq!(rank_to_quantile(3, 4), 3./4.);
+/// assert_eq!(rank_to_quantile(4, 4), 1.);
+/// ```
+///
+/// # Panics
+/// This call will panic if `rank` is out of range
 pub fn rank_to_quantile(rank: u64, num: u64) -> f64 {
     assert!(
         rank > 0 && rank <= num,
@@ -39,7 +81,7 @@ pub fn rank_to_quantile(rank: u64, num: u64) -> f64 {
 #[cfg(test)]
 mod test {
     use super::*;
-    const E: f64 = std::f64::EPSILON;
+    const E: f64 = 1e-10;
 
     #[test]
     fn test_quantiles() {

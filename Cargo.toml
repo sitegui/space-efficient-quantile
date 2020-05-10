@@ -14,11 +14,10 @@ categories = ["algorithms", "concurrency", "data-structures", "mathematics", "sc
 quantile-generator = ["rand", "rand_pcg", "ordered-float"]
 
 [dependencies]
-typenum = "1.11.2"
-sized-chunks = "0.5.0"
+arrayvec = "0.5.1"
+ordered-float = { version = "1.0.2", optional = true }
 rand = { version = "0.7.0", optional = true }
 rand_pcg = { version = "0.2.0", optional = true }
-ordered-float = { version = "1.0.2", optional = true }
 
 [dev-dependencies]
 criterion = "0.3"

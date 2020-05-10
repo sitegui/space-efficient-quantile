@@ -12,3 +12,4 @@ impl<T: Ord> IntoIterator for SamplesNode<T> {
 }
 
 - move src/bin/benchmark.rs to benches/
+- remove the term `push`, use `record` instead

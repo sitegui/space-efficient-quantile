@@ -1,14 +1,14 @@
-mod iter;
+// mod iter;
+mod checkpoint;
+mod checkpoints;
 mod node;
-mod sample;
 mod tree;
 
-pub use iter::{IntoIter, Iter};
-pub use sample::Sample;
-pub use tree::SamplesTree;
-use typenum;
+// pub use iter::{IntoIter, Iter};
+pub use checkpoint::Checkpoint;
+// pub use tree::SamplesTree;
 
-// Max number of elements per node (MUST be odd)
-type NodeCapacity = typenum::U15;
+// Max number of elements per node (MUST be even)
+const NODE_CAPACITY: usize = 16;
 
-type ChildrenCapacity = typenum::Sum<NodeCapacity, typenum::U1>;
+const CHILDREN_CAPACITY: usize = NODE_CAPACITY + 1;
